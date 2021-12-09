@@ -1,0 +1,33 @@
+{
+  "required_api_version": "^2.0.0",
+  "name": "SurfShark",
+  "description": "Toggle and connect to SurfShark quickly",
+  "developer_name": "Anshul Saini",
+  "icon": "images/icon.svg",
+  "preferences": [
+    {
+      "id": "surf_kw",
+      "type": "keyword",
+      "name": "Trigger keyword",
+      "default_value": "surf"
+    },
+    {
+      "id": "surf_max_entry",
+      "type": "text",
+      "name": "Maximum number of servers to show in the list (numeric value)",
+      "default_value": "10"
+    },
+    {
+      "id": "surf_uname",
+      "type": "text",
+      "name": "Surfshark service username (not same as Surfshark login credentials)",
+      "default_value": "username"
+    },
+    {
+      "id": "surf_passwd",
+      "type": "text",
+      "name": "Surfshark service password (https://my.surfshark.com/vpn/manual-setup/main)",
+      "default_value": "password"
+    }
+  ]
+}
