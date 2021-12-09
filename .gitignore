@@ -1,0 +1,3 @@
+.vscode
+server_profiles/**
+service_credentials.conf
