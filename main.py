@@ -3,6 +3,7 @@ import os.path
 import json
 import re
 import pathlib
+import time
 import subprocess as sp
 from gi.repository import Notify
 from ulauncher.api.client.Extension import Extension
@@ -78,7 +79,7 @@ class Utils:
 
 
 class Surf:
-    openvpn_bin_paths = ["/usr/bin/openvpn", "/bin/openvpn"]
+    openvpn_bin_paths = ["/usr/bin/openvpn", "/bin/openvpn", "/usr/sbin/openvpn"]
     # Some additional multihop server profiles that do not follow naming trend
     special_server_profiles = [
         "sg-in.prod.surfshark.com_tcp.ovpn",
@@ -224,11 +225,19 @@ class Surf:
             "Connecting you to Surfshark.",
         )
         # Need to run command in new bash and background to avoid locking extension
-        os.system(f"bash -lc \"pkexec {self.installed_path} --config {self.surfshark_dir_path}/{server} --auth-user-pass {self.config_file_path}\" </dev/null &>/dev/null &")
-        Utils.notify(
-            f'Connected to {server_details["country"]} - {server_details["city"]}.',
-            "Connected to Surfshark VPN.",
-        )
+        #os.system(f"bash -lc \"pkexec {self.installed_path} --config {self.surfshark_dir_path}/{server} --auth-user-pass {self.config_file_path}\" </dev/null &>/dev/null &")
+        sp.call(["pkexec", "bash", "-lc", f"{self.installed_path} --config {self.surfshark_dir_path}/{server} --auth-user-pass {self.config_file_path} &"])
+        time.sleep(2)
+        if (self.get_status()):
+            Utils.notify(
+                f'Connected to {server_details["country"]} - {server_details["city"]}.',
+                "Connected to Surfshark VPN.",
+            )
+        else:
+            Utils.notify(
+                f'Error connecting to {server_details["country"]} - {server_details["city"]}.',
+                "There was an error connecting to Surfshark VPN.",
+            )
 
     # Disconnects openvpn connection, if any 
     def disconnect(self):
@@ -238,12 +247,21 @@ class Surf:
             "Disconnecting...",
             "Disconnecting you from Surfshark.",
         )
-        os.system(f"pgrep -f /usr/bin/openvpn\ --config | pkexec xargs kill ")
-        Utils.notify(
-            "Disconnected.",
-            "Disconnected from Surfshark VPN.",
-        )
-    
+        #os.system(f"pgrep -f {self.installed_path}\ --config | pkexec xargs kill ")
+        ovpn_process_id = sp.Popen(["pgrep", "-f", f"{self.installed_path} --config"], stdout=sp.PIPE)
+        sp.call(["pkexec", "xargs", "kill"], stdin=ovpn_process_id.stdout)
+        time.sleep(2)
+        if not self.get_status():
+            Utils.notify(
+                "Disconnected.",
+                "Disconnected from Surfshark VPN.",
+            )
+        else:
+            Utils.notify(
+                "Error while disconnecting.",
+                "There was an error while disconnecting from Surfshark VPN.",
+            )
+
     # extracts connection type from profile name and returns in user-friendly text
     def get_conn_type_from_profile_name(self, profile_name):
         if not profile_name:
@@ -266,7 +284,7 @@ class Surf:
     
     # Provides the status of VPN connection - returns server details object if connected
     def get_status(self):
-        connected_server_profile = sp.getoutput("pgrep -af /usr/bin/openvpn\ --config | awk '{print $4}' | awk -F/ '{print $NF}' ")
+        connected_server_profile = sp.getoutput(f"pgrep -af {self.installed_path}\ --config | awk '{{print $4}}' | awk -F/ '{{print $NF}}' ")
         if (connected_server_profile):
             return self.populate_server_object(self.get_server_details(connected_server_profile), connected_server_profile)
         
