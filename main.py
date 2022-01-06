@@ -236,7 +236,7 @@ class Surf:
         else:
             Utils.notify(
                 f'Error connecting to {server_details["country"]} - {server_details["city"]}.',
-                "There was an error connecting to Surfshark VPN.",
+                "Make sure to provide Surfshark service-credentails in extension settings.",
             )
 
     # Disconnects openvpn connection, if any 
@@ -306,10 +306,14 @@ class Surf:
             "Refreshed.",
             "Surfshark VPN connection profiles refreshed.",
         )
+
+    # Check is credentials file is present (gets removed with extension updates)
+    def is_credential_file_exists(self):
+        return os.path.exists(self.config_file_path)
     
     # Create and modify credentials file
     def update_credential_file(self, uname, passwd):
-        if not os.path.exists(self.config_file_path):
+        if not self.is_credential_file_exists():
             os.system(f"echo \"\n\" > {self.config_file_path} && chmod 600 {self.config_file_path} ") # need to create two line to open stream for sed to update passowrd at line 2
         if uname:
             os.system(f"sed -i \"1s/.*/{uname}/\" {self.config_file_path} ")
@@ -331,6 +335,8 @@ class Surf:
 class SurfExtension(Extension):
     keyword = None
     max_server_entries = None
+    uname = None
+    passwd = None
 
     def __init__(self):
         super(SurfExtension, self).__init__()
@@ -341,6 +347,11 @@ class SurfExtension(Extension):
         self.surf = Surf()
     
     # Update service credentials
+    def update_credentials(self):
+        if not self.surf.is_credential_file_exists():
+            self.update_username(self.uname)
+            self.update_password(self.passwd)
+
     def update_username(self, uname):
         self.surf.update_credential_file(uname, None)
         
@@ -350,6 +361,8 @@ class SurfExtension(Extension):
     
     # Filters the provided server list based on search query and server type 
     def filter_server_list(self, query, server_type, server_list):
+        # Not the best logic, but ensures that service-credentails file is present before user tries to connect to a VPN server
+        self.update_credentials()
         query = query.lower() if query else ""
         if query:
             return [s for s in server_list if ((s["country"].lower().startswith(query) 
@@ -552,11 +565,13 @@ class ItemEnterEventListener(EventListener):
 class PreferencesEventListener(EventListener):
     def on_event(self, event, extension):
         extension.keyword = event.preferences["surf_kw"]
+        extension.uname = event.preferences["surf_uname"]
+        extension.passwd = event.preferences["surf_passwd"]  
         try:
             extension.max_server_entries = int(event.preferences["surf_max_entry"])
         except ValueError:
             extension.max_server_entries = 10   # default to 10 entries
-
+        
 
 class PreferencesUpdateEventListener(EventListener):
     def on_event(self, event, extension):
